@@ -20,7 +20,6 @@ class Kernel extends HttpKernel
         \App\Http\Middleware\PreventRequestsDuringMaintenance::class,
         \Illuminate\Foundation\Http\Middleware\ValidatePostSize::class,
         \App\Http\Middleware\TrimStrings::class,
-        \App\Http\Middleware\DatabaseConnection::class,
         \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull::class,
         \App\Http\Middleware\SecureHeaders::class,
     ];
@@ -40,6 +39,7 @@ class Kernel extends HttpKernel
             \App\Http\Middleware\VerifyCsrfToken::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
 			\RealRashid\SweetAlert\ToSweetAlert::class,
+            \App\Http\Middleware\DatabaseConnection::class,
         ],
 
         'api' => [

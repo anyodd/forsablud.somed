@@ -19,6 +19,8 @@ class DatabaseConnection
     {    
         if(session('DBase')){
             config(['database.connections.mysql.database' => session('DBase')]);
+            DB::purge('mysql');
+            DB::reconnect('mysql');
         }
 
         return $next($request);

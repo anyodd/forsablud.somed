@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class Login
 {
@@ -25,6 +26,8 @@ class Login
             return back();
         }
         config(['database.connections.mysql.database' => session('DBase')]);
+        DB::purge('mysql');
+        DB::reconnect('mysql');
         return $next($request);
     }
 }

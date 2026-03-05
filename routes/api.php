@@ -1,3 +1,5 @@
+<?php
+
 use App\Http\Controllers\System\DeploymentController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
