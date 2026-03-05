@@ -1,0 +1,198 @@
+@extends('layouts.template')
+@section('style') @endsection
+@section('content')
+
+<section class="content px-0">
+  <div class="container-fluid">
+    <div class="row justify-content-center">
+      <div class="col">
+        <div class="card shadow-lg mt-2">
+          <div class="card-header bg-info py-2">
+            <h5 class="card-title font-weight-bold">Tambah Saldo Awal Piutang</h5> 
+          </div>
+
+          <div class="card-body px-2 py-2">
+              @if(session('errors'))
+              <div class="alert alert-danger alert-dismissible fade show pb-0" role="alert">
+                Something it's wrong:
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                  <span aria-hidden="true">×</span>
+                </button>
+                <ul>
+                  @foreach ($errors->all() as $error)
+                  <li>{{ $error }}</li>
+                  @endforeach
+                </ul>
+              </div>
+              @endif
+              <div class="card-body">
+                <form action="{{ route('saldoawalpiutang.update',$data->id) }}" method="POST">
+                    @csrf
+                    @method('PUT')
+                    <div class="row form-group">
+                        <div class="col-md-2">
+                            <label for="soaw_Rp">Nomor</label>
+                        </div>
+                        <div class="col-md-4">
+                            <input type="text" name="piut_doc" class="form-control" value="{{$data->piut_doc}}" readonly>
+                        </div>
+                    </div>
+                    <div class="row form-group">
+                        <div class="col-md-2">
+                            <label for="soaw_Rp">Tanggal</label>
+                        </div>
+                        <div class="col-md-4">
+                            <input type="date" name="dt_piut" class="form-control" value="{{$data->dt_piut}}">
+                        </div>
+                    </div>
+                    <div class="row form-group">
+                        <div class="col-md-2">
+                            <label for="soaw_Rp">Uraian</label>
+                        </div>
+                        <div class="col-md-10">
+                            <input type="text" name="piut_ur" class="form-control" value="{{$data->piut_ur}}">
+                        </div>
+                    </div>
+                    <div class="row form-group">
+                        <div class="col-md-2">
+                            <label for="soaw_Rp">Nama</label>
+                        </div>
+                        <div class="col-md-10">
+                            <input type="text" name="piut_nm" class="form-control" value="{{$data->piut_nm}}">
+                        </div>
+                    </div>
+                    <div class="row form-group">
+                        <div class="col-md-2">
+                            <label for="soaw_Rp">Alamat</label>
+                        </div>
+                        <div class="col-md-10">
+                            <input type="text" name="piut_addr" class="form-control" value="{{$data->piut_addr}}">
+                        </div>
+                    </div>
+                    <div class="row form-group">
+                        <div class="col-md-2">
+                          <label for="KegApbd">Cari Rincian</label>
+                        </div>
+                        <div class="col-md-10">
+                          <div class="input-group">
+                              <input type="text" class="form-control" id="Ur_Keg2" name="Ur_Keg2">
+                              <span class="input-group-append">
+                              <button type="button" class="btn btn-info btn-flat" data-toggle="modal" data-target="#modalCariKegiatan">Cari!</button>
+                              </span>
+                          </div>
+                        </div>
+                    </div>
+                    <div class="form-group row">
+                        <label for="Ko_sKeg1" class="col-md-2 col-form-label">Nilai Target</label>
+                        <div class="col-md-2">
+                            <input type="text" name="To_Rp" class="form-control text-right" id="To_Rp" readonly>
+                        </div> 
+                        <div class="col-md-4">
+                            <input type="text" name="Ko_Pdp" class="form-control" id="Ko_Pdp" readonly hidden>
+                            <input type="text" name="Ko_pmed" class="form-control" id="Ko_pmed" value="0" readonly hidden>
+                        </div> 
+                    </div>
+                    <div class="form-group row">
+                        <label for="Ko_sKeg1" class="col-md-2 col-form-label">Uraian Program</label>
+                        <div class="col-md-3">
+                            <input type="text" name="Ko_sKeg1" class="form-control" id="sKo_sKeg1" value="{{ $kegiatan->Ko_sKeg1 }}" readonly>
+                        </div> 
+                        <div class="col-md-7">
+                            <input type="text" name="Ur_sKeg1" class="form-control" id="Ur_KegBL1" value="{{ $kegiatan->Ur_KegBL1 }}" readonly>
+                        </div> 
+                    </div>
+                    <div class="form-group row">
+                        <label for="Ko_sKeg2" class="col-md-2 col-form-label">Uraian Kegiatan</label>
+                        <div class="col-md-3">
+                            <input type="text" name="Ko_sKeg2" class="form-control" id="sKo_sKeg2" value="{{ $kegiatan->Ko_sKeg2 }}" readonly>
+                        </div>
+                        <div class="col-md-7">
+                            <input type="text" name="Ur_sKeg2" class="form-control" id="Ur_KegBL2" value="{{ $kegiatan->Ur_KegBL2 }}" readonly>
+                        </div>  
+                    </div>
+                    <div class="row form-group">
+                        <div class="col-md-2">
+                            <label for="nourek">Kode Rekening</label>
+                        </div>
+                        <div class="col-md-10">
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="Ko_Rkk" name="Ko_Rkk" value="{{$rek->rkk}}" readonly>
+                                <span class="input-group-append">
+                                    <button type="button" class="btn btn-info btn-flat"
+                                        data-toggle="modal"
+                                        data-target="#modal_rekening">Cari!</button>
+                                </span>
+                            </div>
+                            <div class=" mt-2">
+                                <input type="text" class="form-control" id="ur_rek" value="{{$rek->ur_rkk}}" readonly>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row form-group">
+                        <div class="col-md-2">
+                            <label for="piut_Rp">Nilai (Rp)</label>
+                        </div>
+                        <div class="col-md-4">
+                            <input type="test" name="piut_Rp" class="form-control desimal" value="{{number_format($data->piut_Rp,2,',','.')}}">
+                        </div>
+                    </div>
+
+                    <div class="form-group row justify-content-center mt-3">
+                        <button type="submit" class="col-sm-2 btn btn-primary ml-3" name="submit">
+                          <i class="far fa-save pr-2"></i>Simpan
+                        </button>
+                        <a href="{{route('saldoawalpiutang.index')}}" class="col-sm-2 btn btn-danger ml-3">
+                          <i class="fas fa-backward pr-2"></i>Kembali
+                        </a> 
+                    </div>
+                </form>
+              </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section> 
+
+@include('pembukuan.saldopiutang.popup.rekening')
+@include('pembukuan.saldopiutang.popup.cari_kegiatan')
+@endsection
+
+@section('script')
+<script>
+ $(function () {
+    $(document).ready(function () {
+        $('#rekening').DataTable();
+        $('#tabelkegiatan').DataTable();
+    });
+    $(document).on('click','#select',function() {
+        var v1 = $(this).data('k_skeg1');
+        var v2 = $(this).data('k_skeg2');
+        // var v3 = $(this).data('k_skeg3');
+        var v4 = $(this).data('k_skeg4');
+        var v5 = $(this).data('k_skeg5');
+        var v6 = $(this).data('k_skeg6');
+        var v7 = $(this).data('k_skeg7');
+        var v8 = $(this).data('k_skeg8');
+        $('#sKo_sKeg1').val(v1);
+        $('#sKo_sKeg2').val(v2);
+        // $('#sKo_Rkk').val(v3);
+        $('#Ur_KegBL1').val(v4);
+        $('#Ur_KegBL2').val(v5);
+        $('#Ur_Rk6').val(v6);
+        $('#To_Rp').val(v7);
+        $('#Ko_Pdp').val(v8);
+        $('#modalCariKegiatan').hide();
+    });
+
+    $(document).on('click','#pilihrek',function() {
+        var v1 = $(this).data('rkk');
+        var v2 = $(this).data('ur_rkk');
+        $('#Ko_Rkk').val(v1);
+        $('#ur_rek').val(v2);
+        $('#modal_rekening').hide();
+    });
+  })
+</script>
+@endsection

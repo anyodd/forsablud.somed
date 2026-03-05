@@ -1,0 +1,384 @@
+<?php
+
+namespace App\Http\Controllers\Laporan\Pembukuan\FormatLaporan;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Contracts\Encryption\DecryptException;
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Crypt;
+use Yajra\DataTables\Facades\DataTables;
+
+
+class RptLraSumberDanaController extends Controller
+{
+    private $modul = 'laporan';
+    private $view;
+
+    public function __construct()
+    {
+        $this->view = $this->modul.'.pembukuan.cetak-lapkeu';
+    }
+
+    public static function Laporan($tahun, $tgl_1, $tgl_2, $idlevelrekening, $idprogram, $idkegiatan, $idsubkegiatan, $idsumberdana)
+    {
+		$data = null;
+		$ambilbidang = 0;
+		$ambilskpd = 0;
+		$ambilunit = 0;
+		$ambilprogram = 0;
+		$ambilkegiatan = 0;
+		$ambilsubkegiatan = 0;
+
+		
+        $pemda = DB::select("SELECT CONCAT(LPAD(ko_wil1,2,0),'.',LPAD(ko_wil2,2,0)) AS Ko_pemda, ur_pemda AS nmpemda 
+							FROM tb_pemda
+							WHERE CONCAT(LPAD(ko_wil1,2,0),'.',LPAD(ko_wil2,2,0)) = LEFT('".kd_unit()."',5)
+							ORDER BY ko_wil1, ko_wil2 ");
+        $tahun = Tahun();
+		$id_bidang = bidang_id(kd_unit());
+		$pf_rk6 = "( SELECT a.* FROM pf_rk6 a WHERE (a.Ko_Rk1 = 4) AND (a.id_bidang = ( SELECT SUM(b.id_bidang) AS id_bidang FROM ( SELECT 0 AS id_bidang UNION SELECT id_bidang FROM pf_rk6 WHERE id_bidang = ".$id_bidang." GROUP BY id_bidang ) b )) 
+		UNION SELECT a.* FROM pf_rk6 a WHERE (a.Ko_Rk1 <> 4) AND (a.id_bidang = 0) )";
+		
+		$bid = DB::SELECT("SELECT DISTINCT u.Ko_Urus AS kdurusan, u.Ur_Urus AS nmurusan, b.id AS idbidang, b.Ur_Bid AS nmbidang, 
+						CONCAT(RIGHT(CONCAT('0',u.Ko_Urus),2),'.',RIGHT(CONCAT('0',b.Ko_Bid),2),' ',b.Ur_Bid) AS kode_bidang
+						FROM pf_urus AS u
+						INNER JOIN pf_bid AS b ON u.Ko_Urus=b.Ko_Urus
+						WHERE CONCAT(RIGHT(CONCAT('0',u.Ko_Urus),2),'.',RIGHT(CONCAT('0',b.Ko_Bid),2)) = SUBSTRING('".kd_unit()."',7,5) ");
+
+		$skpd = DB::SELECT("SELECT CONCAT(
+							LPAD(s.ko_wil1,2,0),'.' ,
+							LPAD(s.ko_wil2,2,0),'.', 
+							LPAD(s.ko_urus,2,0),'.', 
+							LPAD(s.ko_bid,2,0),'.',
+							LPAD(s.ko_unit,2,0),' ',s.Ur_unit) AS kode_skpd, s.Ur_unit AS uraian_skpd
+							FROM tb_unit AS s
+							WHERE CONCAT(
+							LPAD(s.ko_wil1,2,0),'.' ,
+							LPAD(s.ko_wil2,2,0),'.', 
+							LPAD(s.ko_urus,2,0),'.', 
+							LPAD(s.ko_bid,2,0),'.',
+							LPAD(s.ko_unit,2,0)) = LEFT('".kd_unit()."',14)");
+
+		$unit = DB::SELECT("SELECT CONCAT(
+							LPAD(s.ko_wil1,2,0),'.' ,
+							LPAD(s.ko_wil2,2,0),'.', 
+							LPAD(s.ko_urus,2,0),'.', 
+							LPAD(s.ko_bid,2,0),'.',
+							LPAD(s.ko_unit,2,0),'.',
+							LPAD(s.ko_sub,3,0),' ',s.ur_subunit) AS kode_unit, s.ur_subunit AS uraian_unit
+							FROM tb_sub AS s
+							WHERE CONCAT(
+							LPAD(s.ko_wil1,2,0),'.' ,
+							LPAD(s.ko_wil2,2,0),'.', 
+							LPAD(s.ko_urus,2,0),'.', 
+							LPAD(s.ko_bid,2,0),'.',
+							LPAD(s.ko_unit,2,0),'.',
+							LPAD(s.ko_sub,3,0)) = LEFT('".kd_unit()."',18)");
+							
+		$tglakhirperiodelalu = strtotime("-1 day", strtotime($tgl_1));
+		$tglakhirperiodelalu = date("Y-m-d", $tglakhirperiodelalu);
+		$tahunperiodelalu = date("Y", strtotime($tglakhirperiodelalu));
+		$tahunawal = date("Y", strtotime($tgl_1));
+		
+		if ($tahunperiodelalu < $tahunawal) {
+			$jnsquery = 'nol';
+		} else {
+			$tglawaltahun  = $tahunawal . '-01-01';
+			$tglawaltahun = date("Y-m-d", strtotime($tglawaltahun));
+			$jnsquery = 'isi';
+		}
+							
+		if ($idprogram != -1 ) {
+			$idprogram_req = $idprogram;
+			$ambilprogram = DB::select("SELECT DISTINCT m.Ur_Prg AS nmprogram, m.Ko_Prg AS idprogram, CONCAT(LPAD(m.Ko_Prg,2,0),' - ',m.Ur_Prg) AS program_display 
+                    FROM tb_ang_rc AS a INNER JOIN
+                        tb_kegs2 jjj ON a.Ko_sKeg2=jjj.Ko_sKeg2 AND a.Ko_sKeg1=jjj.Ko_sKeg1 AND a.Ko_unit1=jjj.Ko_unit1 INNER JOIN
+                        tb_kegs1 jj ON jjj.Ko_KegBL1=jj.Ko_KegBL1 AND jjj.Ko_sKeg1=jj.Ko_sKeg1 AND jjj.Ko_unit1=jj.Ko_unit1 INNER JOIN
+                        tb_keg j ON jj.Ko_sKeg1=j.Ko_sKeg1 AND jj.Ko_unit1=j.Ko_unit1 INNER JOIN
+                        pf_skeg k ON j.id_sub_keg=k.id_sub_keg INNER JOIN
+						pf_keg l ON k.id_keg=l.id_keg INNER JOIN
+						pf_prg m ON l.id_prog=m.id_prog 
+                    WHERE LEFT(j.Ko_unit1,18) = '".kd_unit()."' AND a.Ko_Period=".Tahun()." AND m.Ko_Prg LIKE '".$idprogram_req."' ");
+		} else {
+			$idprogram_req = "%";
+		}
+		
+		if ($idkegiatan != -1 ) {
+			$idkegiatan_req = $idkegiatan;
+			$ambilkegiatan = DB::select("SELECT DISTINCT l.Ur_Keg AS nmkegiatan, l.Ko_Prg AS idprogram, CONCAT(LPAD(l.Ko_Prg,2,0),'.',l.Ko_Keg) AS idkegiatan, CONCAT(LPAD(l.Ko_Prg,2,0),'.',l.Ko_Keg,' - ',l.Ur_Keg) AS kegiatan_display
+                    FROM tb_ang_rc AS a INNER JOIN
+						tb_kegs2 jjj ON a.Ko_sKeg2=jjj.Ko_sKeg2 AND a.Ko_sKeg1=jjj.Ko_sKeg1 AND a.Ko_unit1=jjj.Ko_unit1 INNER JOIN
+						tb_kegs1 jj ON jjj.Ko_KegBL1=jj.Ko_KegBL1 AND jjj.Ko_sKeg1=jj.Ko_sKeg1 AND jjj.Ko_unit1=jj.Ko_unit1 INNER JOIN
+						tb_keg j ON jj.Ko_sKeg1=j.Ko_sKeg1 AND jj.Ko_unit1=j.Ko_unit1 INNER JOIN
+						pf_skeg k ON j.id_sub_keg=k.id_sub_keg INNER JOIN
+						pf_keg l ON k.id_keg=l.id_keg INNER JOIN
+						pf_prg m ON l.id_prog=m.id_prog 			
+                    WHERE LEFT(j.Ko_unit1,18) = '".kd_unit()."' AND a.Ko_Period=".Tahun()." AND m.Ko_Prg LIKE '".$idprogram_req."' AND CONCAT(LPAD(l.Ko_Prg,2,0),'.',l.Ko_Keg) LIKE '" . $idkegiatan_req."' ");
+		} else {
+			$idkegiatan_req = "%";
+		}
+		
+		if ($idsubkegiatan != -1 ) {
+			$idsubkegiatan_req = $idsubkegiatan;
+			$ambilsubkegiatan = DB::select("SELECT DISTINCT k.Ur_sKeg AS nmsubkegiatan, k.Ko_Prg AS idprogram, CONCAT(LPAD(k.Ko_Prg,2,0),'.',k.Ko_Keg) AS idkegiatan, CONCAT(LPAD(k.Ko_Prg,2,0),'.',k.Ko_Keg,'.',LPAD(k.Ko_sKeg,3,0)) AS idsubkegiatan, CONCAT(k.Ko_sKeg1,' - ',k.Ur_sKeg) AS subkegiatan_display
+                    FROM tb_ang_rc AS a INNER JOIN
+						tb_kegs2 jjj ON a.Ko_sKeg2=jjj.Ko_sKeg2 AND a.Ko_sKeg1=jjj.Ko_sKeg1 AND a.Ko_unit1=jjj.Ko_unit1 INNER JOIN
+						tb_kegs1 jj ON jjj.Ko_KegBL1=jj.Ko_KegBL1 AND jjj.Ko_sKeg1=jj.Ko_sKeg1 AND jjj.Ko_unit1=jj.Ko_unit1 INNER JOIN
+						tb_keg j ON jj.Ko_sKeg1=j.Ko_sKeg1 AND jj.Ko_unit1=j.Ko_unit1 INNER JOIN
+						pf_skeg k ON j.id_sub_keg=k.id_sub_keg INNER JOIN
+						pf_keg l ON k.id_keg=l.id_keg INNER JOIN
+						pf_prg m ON l.id_prog=m.id_prog 
+                    WHERE LEFT(j.Ko_unit1,18) = '".kd_unit()."' AND a.Ko_Period=".Tahun()." AND m.Ko_Prg LIKE '".$idprogram_req."' AND CONCAT(LPAD(l.Ko_Prg,2,0),'.',l.Ko_Keg) LIKE '" . $idkegiatan_req."' AND CONCAT(LPAD(k.Ko_Prg,2,0),'.',k.Ko_Keg,'.',LPAD(k.Ko_sKeg,3,0)) LIKE '" . $idsubkegiatan_req."' ");
+		} else {
+			$idsubkegiatan_req = "%";
+		}
+		
+		if ($idsumberdana != -1 ) {
+			$idsumberdana_req = $idsumberdana;
+		} else {
+			$idsumberdana_req = "%";
+		}
+		
+		//dd($idsumberdana_req);
+		
+		$Ko_tap = DB::SELECT("SELECT MAX(Ko_tap) AS Ko_tap FROM tb_tap WHERE Ko_Period = ".$tahun." AND LEFT(Ko_unit1,18) = '".kd_unit()."' AND CAST(Dt_Tap AS DATE) <= CAST('".$tgl_2."' AS DATE) ");
+
+		$id_tap = DB::SELECT("SELECT MAX(id_tap) AS id_tap FROM tb_tap WHERE Ko_tap=".$Ko_tap[0]->Ko_tap." AND Ko_Period = ".$tahun." AND LEFT(Ko_unit1,18) = '".kd_unit()."' AND CAST(Dt_Tap AS DATE) <= CAST('".$tgl_2."' AS DATE) ");
+
+		$query = DB::select("WITH anggaran AS (
+							SELECT bel.Ko_Pdp AS idsumberdana, CONCAT(bel.Ko_Period,'-',bel.ko_rkk) as kodebuatan, 
+							bel.Ko_Period AS tahun, LEFT(bel.ko_rkk,2) AS kdrek1, SUBSTRING(bel.ko_rkk,4,2) AS kdrek2, 
+							SUBSTRING(bel.ko_rkk,7,2) AS kdrek3, SUBSTRING(bel.Ko_Rkk,10,2) AS kdrek4, SUBSTRING(bel.Ko_Rkk,13,3) AS kdrek5, 
+							RIGHT(bel.Ko_Rkk,4) AS kdrek6, sum(bel.To_Rp) AS jumlah
+							FROM tb_tap AS bel INNER JOIN
+							tb_kegs2 jjj ON bel.Ko_sKeg2=jjj.Ko_sKeg2 AND bel.Ko_sKeg1=jjj.Ko_sKeg1 AND bel.Ko_unit1=jjj.Ko_unit1 INNER JOIN
+							tb_kegs1 jj ON jjj.Ko_KegBL1=jj.Ko_KegBL1 AND jjj.Ko_sKeg1=jj.Ko_sKeg1 AND jjj.Ko_unit1=jj.Ko_unit1 INNER JOIN
+							tb_keg j ON jj.Ko_sKeg1=j.Ko_sKeg1 AND jj.Ko_unit1=j.Ko_unit1 INNER JOIN
+							pf_skeg k ON j.id_sub_keg=k.id_sub_keg INNER JOIN
+							pf_keg l ON k.id_keg=l.id_keg INNER JOIN
+							pf_prg m ON l.id_prog=m.id_prog 
+							WHERE bel.Ko_tap=".$Ko_tap[0]->Ko_tap." AND bel.id_tap=".$id_tap[0]->id_tap." AND LEFT(bel.Ko_unit1,18) = '".kd_unit()."'
+							AND ((LEFT(bel.ko_rkk,2) IN (5)) OR (LEFT(bel.ko_rkk,2)=6 AND SUBSTRING(bel.ko_rkk,4,2)=2))
+							AND m.Ko_Prg LIKE '".$idprogram_req."'
+							AND CONCAT(LPAD(l.Ko_Prg,2,0),'.',l.Ko_Keg) LIKE '".$idkegiatan_req."'
+							AND CONCAT(LPAD(k.Ko_Prg,2,0),'.',k.Ko_Keg,'.',LPAD(k.Ko_sKeg,3,0)) LIKE '".$idsubkegiatan_req."'
+							AND bel.Ko_Pdp LIKE '".$idsumberdana_req."'
+							GROUP BY bel.Ko_Period,bel.ko_rkk
+						),
+						realisasi AS (
+							SELECT CONCAT(
+									realisasitahunini.tahun,'-',realisasitahunini.kdrek1,'.',realisasitahunini.kdrek2,'.',realisasitahunini.kdrek3,'.',
+									realisasitahunini.kdrek4,'.',realisasitahunini.kdrek5,'.',realisasitahunini.kdrek6
+									) AS kodebuatan,
+									realisasitahunini.tahun, realisasitahunini.kdrek1, realisasitahunini.kdrek2, realisasitahunini.kdrek3, realisasitahunini.kdrek4,
+									realisasitahunini.kdrek5, realisasitahunini.kdrek6, sum(realisasitahunini.nilaiRealisasi) as nilaiRealisasi, coalesce(0,0) as nilaiRealisasiperiodelalu
+							FROM (
+									SELECT a.Ko_Period AS tahun, LEFT(a.Ko_Rkk,2) AS kdrek1, SUBSTRING(a.Ko_Rkk,4,2) AS kdrek2, 
+									SUBSTRING(a.Ko_Rkk,7,2) AS kdrek3, SUBSTRING(a.Ko_Rkk,10,2) AS kdrek4, SUBSTRING(a.Ko_Rkk,13,3) AS kdrek5, RIGHT(a.Ko_Rkk,4) AS kdrek6,
+									CASE 
+									/*WHEN CAST(a.dt_bukti AS DATE) >= CAST('".$tgl_1."' AS DATE) AND CAST(a.dt_bukti AS DATE) <= CAST('".$tgl_2."' AS DATE)
+									AND (LEFT(a.Ko_Rkk,2) = 4 OR (LEFT(a.Ko_Rkk,2)=6 AND SUBSTRING(a.Ko_Rkk,4,2)=1)) 
+									THEN a.jrRp_K-a.jrRp_D*/
+									WHEN CAST(a.dt_bukti AS DATE) >= CAST('".$tgl_1."' AS DATE) AND CAST(a.dt_bukti AS DATE) <= CAST('".$tgl_2."' AS DATE)
+									AND (LEFT(a.Ko_Rkk,2) = 5 OR (LEFT(a.Ko_Rkk,2) = 6 AND SUBSTRING(a.Ko_Rkk,4,2)=2)) 
+									THEN a.jrRp_D-a.jrRp_K ELSE 0 END AS nilaiRealisasi
+									FROM jr_trans a INNER JOIN
+									tb_kegs2 jjj ON a.Ko_sKeg2=jjj.Ko_sKeg2 AND a.Ko_sKeg1=jjj.Ko_sKeg1 AND a.Ko_unitstr=LEFT(jjj.Ko_unit1,18) INNER JOIN
+									tb_kegs1 jj ON jjj.Ko_KegBL1=jj.Ko_KegBL1 AND jjj.Ko_sKeg1=jj.Ko_sKeg1 AND jjj.Ko_unit1=jj.Ko_unit1 INNER JOIN
+									tb_keg j ON jj.Ko_sKeg1=j.Ko_sKeg1 AND jj.Ko_unit1=j.Ko_unit1 INNER JOIN
+									pf_skeg k ON j.id_sub_keg=k.id_sub_keg INNER JOIN
+									pf_keg l ON k.id_keg=l.id_keg INNER JOIN
+									pf_prg m ON l.id_prog=m.id_prog 
+									WHERE ((LEFT(a.Ko_Rkk,2) IN (4,5)) OR (LEFT(a.Ko_Rkk,2)=6 AND SUBSTRING(a.Ko_Rkk,4,2)=1) OR (LEFT(a.Ko_Rkk,2)=6 AND SUBSTRING(a.Ko_Rkk,4,2)=2))
+									AND CAST(a.dt_bukti AS DATE) >= CAST('".$tgl_1."' AS DATE) AND CAST(a.dt_bukti AS DATE) <= CAST('".$tgl_2."' AS DATE)
+									AND LEFT(a.Ko_unitstr,18) = '".kd_unit()."'
+									AND m.Ko_Prg LIKE '".$idprogram_req."'
+									AND CONCAT(LPAD(l.Ko_Prg,2,0),'.',l.Ko_Keg) LIKE '".$idkegiatan_req."'
+									AND CONCAT(LPAD(k.Ko_Prg,2,0),'.',k.Ko_Keg,'.',LPAD(k.Ko_sKeg,3,0)) LIKE '".$idsubkegiatan_req."' 
+									UNION ALL
+									SELECT a.Ko_Period AS tahun, LEFT(a.Ko_Rkk,2) AS kdrek1, SUBSTRING(a.Ko_Rkk,4,2) AS kdrek2, 
+									SUBSTRING(a.Ko_Rkk,7,2) AS kdrek3, SUBSTRING(a.Ko_Rkk,10,2) AS kdrek4, SUBSTRING(a.Ko_Rkk,13,3) AS kdrek5, RIGHT(a.Ko_Rkk,4) AS kdrek6,
+									CASE 
+									/*WHEN CAST(a.dt_sesuai AS DATE) >= CAST('".$tgl_1."' AS DATE) AND CAST(a.dt_sesuai AS DATE) <= CAST('".$tgl_2."' AS DATE)
+									AND (LEFT(a.Ko_Rkk,2) = 4 OR (LEFT(a.Ko_Rkk,2)=6 AND SUBSTRING(a.Ko_Rkk,4,2)=1)) 
+									THEN a.Rp_K-a.Rp_D */
+									WHEN CAST(a.dt_sesuai AS DATE) >= CAST('".$tgl_1."' AS DATE) AND CAST(a.dt_sesuai AS DATE) <= CAST('".$tgl_2."' AS DATE)
+									AND (LEFT(a.Ko_Rkk,2) = 5 OR (LEFT(a.Ko_Rkk,2) = 6 AND SUBSTRING(a.Ko_Rkk,4,2)=2)) 
+									THEN a.Rp_D-a.Rp_K ELSE 0 END AS nilaiRealisasi
+									FROM jr_sesuai a LEFT OUTER JOIN
+									tb_kegs2 jjj ON a.Ko_sKeg2=jjj.Ko_sKeg2 AND a.Ko_sKeg1=jjj.Ko_sKeg1 AND a.Ko_unitstr=LEFT(jjj.Ko_unit1,18) LEFT OUTER JOIN
+									tb_kegs1 jj ON jjj.Ko_KegBL1=jj.Ko_KegBL1 AND jjj.Ko_sKeg1=jj.Ko_sKeg1 AND jjj.Ko_unit1=jj.Ko_unit1 LEFT OUTER JOIN
+									tb_keg j ON jj.Ko_sKeg1=j.Ko_sKeg1 AND jj.Ko_unit1=j.Ko_unit1 LEFT OUTER JOIN
+									pf_skeg k ON j.id_sub_keg=k.id_sub_keg LEFT OUTER JOIN
+									pf_keg l ON k.id_keg=l.id_keg LEFT OUTER JOIN
+									pf_prg m ON l.id_prog=m.id_prog 
+									WHERE ((LEFT(a.Ko_Rkk,2) IN (4,5)) )
+									AND CAST(a.dt_sesuai AS DATE) >= CAST('".$tgl_1."' AS DATE) AND CAST(a.dt_sesuai AS DATE) <= CAST('".$tgl_2."' AS DATE)
+									AND LEFT(a.Ko_unitstr,18) = '".kd_unit()."'
+									AND m.Ko_Prg LIKE '".$idprogram_req."'
+									AND CONCAT(LPAD(l.Ko_Prg,2,0),'.',l.Ko_Keg) LIKE '".$idkegiatan_req."'
+									AND CONCAT(LPAD(k.Ko_Prg,2,0),'.',k.Ko_Keg,'.',LPAD(k.Ko_sKeg,3,0)) LIKE '".$idsubkegiatan_req."'
+									UNION ALL
+									SELECT a.Ko_Period AS tahun, LEFT(a.Ko_Rkk,2) AS kdrek1, SUBSTRING(a.Ko_Rkk,4,2) AS kdrek2, 
+									SUBSTRING(a.Ko_Rkk,7,2) AS kdrek3, SUBSTRING(a.Ko_Rkk,10,2) AS kdrek4, SUBSTRING(a.Ko_Rkk,13,3) AS kdrek5, RIGHT(a.Ko_Rkk,4) AS kdrek6,
+									CASE 
+									/*WHEN CAST(a.dt_sesuai AS DATE) >= CAST('".$tgl_1."' AS DATE) AND CAST(a.dt_sesuai AS DATE) <= CAST('".$tgl_2."' AS DATE)
+									AND (LEFT(a.Ko_Rkk,2) = 4 OR (LEFT(a.Ko_Rkk,2)=6 AND SUBSTRING(a.Ko_Rkk,4,2)=1)) 
+									THEN a.Rp_K-a.Rp_D */
+									WHEN CAST(a.dt_sesuai AS DATE) >= CAST('".$tgl_1."' AS DATE) AND CAST(a.dt_sesuai AS DATE) <= CAST('".$tgl_2."' AS DATE)
+									AND (LEFT(a.Ko_Rkk,2) = 5 OR (LEFT(a.Ko_Rkk,2) = 6 AND SUBSTRING(a.Ko_Rkk,4,2)=2)) 
+									THEN a.Rp_D-a.Rp_K ELSE 0 END AS nilaiRealisasi
+									FROM jr_sesuai a 
+									WHERE ((LEFT(a.Ko_Rkk,2)=6 AND SUBSTRING(a.Ko_Rkk,4,2)=1) OR (LEFT(a.Ko_Rkk,2)=6 AND SUBSTRING(a.Ko_Rkk,4,2)=2))
+									AND CAST(a.dt_sesuai AS DATE) >= CAST('".$tgl_1."' AS DATE) AND CAST(a.dt_sesuai AS DATE) <= CAST('".$tgl_2."' AS DATE)
+									AND LEFT(a.Ko_unitstr,18) = '".kd_unit()."' 									
+							) realisasitahunini
+							GROUP BY realisasitahunini.tahun, realisasitahunini.kdrek1, realisasitahunini.kdrek2, realisasitahunini.kdrek3, realisasitahunini.kdrek4,
+							realisasitahunini.kdrek5, realisasitahunini.kdrek6
+						),
+						temp AS (
+						SELECT q.idsumberdana,
+							CASE
+									WHEN q.tahun IS NULL THEN w.tahun
+									ELSE q.tahun
+						END AS tahun,
+							CASE
+									WHEN q.kdrek1 IS NULL THEN w.kdrek1
+									ELSE q.kdrek1
+						END AS kdrek1,
+							CASE
+									WHEN q.kdrek2 IS NULL THEN w.kdrek2
+									else q.kdrek2
+						END AS kdrek2,
+							CASE
+									WHEN q.kdrek3 IS NULL THEN w.kdrek3
+									ELSE q.kdrek3
+						END AS kdrek3,
+							CASE
+									WHEN q.kdrek4 IS NULL THEN w.kdrek4
+									ELSE q.kdrek4
+						END AS kdrek4,
+							CASE
+									WHEN q.kdrek5 IS NULL THEN w.kdrek5
+									ELSE q.kdrek5
+						END AS kdrek5,
+							CASE
+									WHEN q.kdrek6 IS NULL THEN w.kdrek6
+									ELSE q.kdrek6
+						END AS kdrek6,
+						COALESCE(q.jumlah,0) as jumlah, COALESCE(w.nilaiRealisasi,0) AS nilaiRealisasi, COALESCE(w.nilaiRealisasiperiodelalu,0) AS nilaiRealisasiperiodelalu
+						FROM anggaran AS q
+						LEFT JOIN realisasi AS w ON q.kodebuatan=w.kodebuatan
+						)
+						SELECT RIGHT(CONCAT('00', temp.idsumberdana), 3) AS kodeurut, 
+								CONCAT(temp.idsumberdana,'') AS koderekening,
+								CASE temp.idsumberdana WHEN 1 THEN 'JASA LAYANAN' WHEN 2 THEN 'HIBAH' WHEN 3 THEN 'HASIL KERJASAMA'
+									WHEN 4 THEN 'APBD' WHEN 5 THEN 'LAIN-LAIN PENDAPATAN BLUD' WHEN 6 THEN 'SILPA'
+									ELSE 'TIDAK ADA DATA' END AS uraian,
+								SUM(temp.jumlah) AS temp_jumlah, SUM(temp.nilaiRealisasi) AS nilaiRealisasi,
+								SUM(temp.nilaiRealisasiperiodelalu) AS nilaiRealisasiperiodelalu,
+								SUM(temp.nilaiRealisasi) + SUM(temp.nilaiRealisasiperiodelalu) AS totalrealisasi,
+								SUM(temp.nilaiRealisasi) + SUM(temp.nilaiRealisasiperiodelalu) - SUM(temp.jumlah) AS lebkur
+						FROM temp 
+						GROUP BY temp.idsumberdana
+						UNION ALL
+						SELECT  CONCAT(RIGHT(CONCAT('00', temp.idsumberdana), 3),'-',temp.kdrek1) AS kodeurut,
+								temp.kdrek1 AS koderekening,
+								rek1.Ur_Rk1 AS uraian,
+								SUM(temp.jumlah) AS temp_jumlah, SUM(temp.nilaiRealisasi) AS nilaiRealisasi,
+								SUM(temp.nilaiRealisasiperiodelalu) AS nilaiRealisasiperiodelalu,
+								SUM(temp.nilaiRealisasi) + SUM(temp.nilaiRealisasiperiodelalu) AS totalrealisasi,
+								SUM(temp.nilaiRealisasi) + SUM(temp.nilaiRealisasiperiodelalu) - SUM(temp.jumlah) AS lebkur
+						FROM temp
+						INNER JOIN pf_rk1 AS rek1 ON temp.kdrek1 = rek1.Ko_Rk1
+						GROUP BY temp.kdrek1,rek1.Ur_Rk1
+						UNION ALL
+						SELECT  CONCAT(RIGHT(CONCAT('00', temp.idsumberdana), 3),'-',temp.kdrek1,'.',temp.kdrek2) AS kodeurut,
+								CONCAT(temp.kdrek1,'.',temp.kdrek2) AS koderekening,
+								rek2.Ur_Rk2,
+								SUM(temp.jumlah) AS temp_jumlah, SUM(temp.nilaiRealisasi) AS nilaiRealisasi,
+								SUM(temp.nilaiRealisasiperiodelalu) AS nilaiRealisasiperiodelalu,
+								SUM(temp.nilaiRealisasi) + SUM(temp.nilaiRealisasiperiodelalu) AS totalrealisasi,
+								SUM(temp.nilaiRealisasi) + SUM(temp.nilaiRealisasiperiodelalu) - SUM(temp.jumlah) AS lebkur
+						FROM temp
+						INNER JOIN pf_rk2 AS rek2 ON temp.kdrek1 = rek2.Ko_Rk1 AND temp.kdrek2 = rek2.Ko_Rk2
+						WHERE ".$idlevelrekening." >=2
+						GROUP BY temp.kdrek1,temp.kdrek2,rek2.Ur_Rk2
+						UNION ALL
+						SELECT  CONCAT(RIGHT(CONCAT('00', temp.idsumberdana), 3),'-',temp.kdrek1,'.',temp.kdrek2,'.',temp.kdrek3) AS kodeurut,
+								CONCAT(temp.kdrek1,'.',temp.kdrek2,'.',RIGHT(CONCAT('0', temp.kdrek3), 2)) AS koderekening,
+								rek3.Ur_Rk3,
+								SUM(temp.jumlah) AS temp_jumlah, SUM(temp.nilaiRealisasi) AS nilaiRealisasi,
+								SUM(temp.nilaiRealisasiperiodelalu) AS nilaiRealisasiperiodelalu,
+								SUM(temp.nilaiRealisasi) + SUM(temp.nilaiRealisasiperiodelalu) AS totalrealisasi,
+								SUM(temp.nilaiRealisasi) + SUM(temp.nilaiRealisasiperiodelalu) - SUM(temp.jumlah) AS lebkur
+						FROM temp
+						INNER JOIN pf_rk3 AS rek3 ON temp.kdrek1 = rek3.Ko_Rk1 AND temp.kdrek2 = rek3.Ko_Rk2 AND temp.kdrek3 = rek3.Ko_Rk3
+						WHERE ".$idlevelrekening." >=3
+						GROUP BY temp.kdrek1,temp.kdrek2,temp.kdrek3,rek3.Ur_Rk3
+						UNION ALL
+						SELECT  CONCAT(RIGHT(CONCAT('00', temp.idsumberdana), 3),'-',temp.kdrek1,'.',temp.kdrek2,'.',temp.kdrek3,'.',temp.kdrek4) AS kodeurut,
+								CONCAT(temp.kdrek1,'.',temp.kdrek2,'.',RIGHT(CONCAT('0', temp.kdrek3), 2),
+								'.',RIGHT(CONCAT('0', temp.kdrek4), 2)) AS koderekening,
+								rek4.Ur_Rk4,
+								SUM(temp.jumlah) AS temp_jumlah, SUM(temp.nilaiRealisasi) AS nilaiRealisasi,
+								SUM(temp.nilaiRealisasiperiodelalu) AS nilaiRealisasiperiodelalu,
+								SUM(temp.nilaiRealisasi) + SUM(temp.nilaiRealisasiperiodelalu) AS totalrealisasi,
+								SUM(temp.nilaiRealisasi) + SUM(temp.nilaiRealisasiperiodelalu) - SUM(temp.jumlah) AS lebkur
+						FROM temp
+						INNER JOIN pf_rk4 AS rek4 ON temp.kdrek1 = rek4.Ko_Rk1 AND temp.kdrek2 = rek4.Ko_Rk2
+								AND temp.kdrek3 = rek4.Ko_Rk3 AND temp.kdrek4 = rek4.Ko_Rk4
+						WHERE ".$idlevelrekening." >=4
+						GROUP BY temp.kdrek1,temp.kdrek2,temp.kdrek3,temp.kdrek4,rek4.Ur_Rk4
+						UNION ALL
+						SELECT  CONCAT(RIGHT(CONCAT('00', temp.idsumberdana), 3),'-',temp.kdrek1,'.',temp.kdrek2,'.',temp.kdrek3,'.',temp.kdrek4,'.',temp.kdrek5) AS kodeurut,
+								CONCAT(temp.kdrek1,'.',temp.kdrek2,'.',RIGHT(CONCAT('0', temp.kdrek3), 2),
+								'.',RIGHT(CONCAT('0', temp.kdrek4), 2),'.',RIGHT(CONCAT('00', temp.kdrek5), 3)) AS koderekening,
+								rek5.Ur_Rk5,
+								SUM(temp.jumlah) AS temp_jumlah, SUM(temp.nilaiRealisasi) AS nilaiRealisasi,
+								SUM(temp.nilaiRealisasiperiodelalu) AS nilaiRealisasiperiodelalu,
+								SUM(temp.nilaiRealisasi) + SUM(temp.nilaiRealisasiperiodelalu) AS totalrealisasi,
+								SUM(temp.nilaiRealisasi) + SUM(temp.nilaiRealisasiperiodelalu) - SUM(temp.jumlah) AS lebkur
+						FROM temp
+						INNER JOIN pf_rk5 AS rek5 ON temp.kdrek1 = rek5.Ko_Rk1 AND temp.kdrek2 = rek5.Ko_Rk2
+								AND temp.kdrek3 = rek5.Ko_Rk3 AND temp.kdrek4 = rek5.Ko_Rk4
+								AND temp.kdrek5 = rek5.Ko_Rk5
+						WHERE ".$idlevelrekening." >=5
+						GROUP BY temp.kdrek1,temp.kdrek2,temp.kdrek3,temp.kdrek4,temp.kdrek5,rek5.Ur_Rk5
+						UNION ALL
+						SELECT CONCAT(RIGHT(CONCAT('00', temp.idsumberdana), 3),'-',temp.kdrek1,'.',temp.kdrek2,'.',temp.kdrek3,'.',temp.kdrek4,'.',temp.kdrek5,'.',temp.kdrek6) AS kodeurut,
+								CONCAT(temp.kdrek1,'.',temp.kdrek2,'.',RIGHT(CONCAT('0', temp.kdrek3), 2),
+								'.',RIGHT(CONCAT('0', temp.kdrek4), 2),'.',RIGHT(CONCAT('00', temp.kdrek5), 3),
+								'.',RIGHT(CONCAT('000', temp.kdrek6), 4)) AS koderekening,
+								rek6.Ur_Rk6,
+								SUM(temp.jumlah) AS temp_jumlah, SUM(temp.nilaiRealisasi) AS nilaiRealisasi,
+								SUM(temp.nilaiRealisasiperiodelalu) AS nilaiRealisasiperiodelalu,
+								SUM(temp.nilaiRealisasi) + SUM(temp.nilaiRealisasiperiodelalu) AS totalrealisasi,
+								SUM(temp.nilaiRealisasi) + SUM(temp.nilaiRealisasiperiodelalu) - SUM(temp.jumlah) AS lebkur
+						FROM temp
+						INNER JOIN ". $pf_rk6 . " AS rek6 ON temp.kdrek1 = rek6.Ko_Rk1 AND temp.kdrek2 = rek6.Ko_Rk2
+								AND temp.kdrek3 = rek6.Ko_Rk3 AND temp.kdrek4 = rek6.Ko_Rk4
+								AND temp.kdrek5 = rek6.Ko_Rk5 AND temp.kdrek6 = rek6.Ko_Rk6
+						WHERE ".$idlevelrekening." >=6
+						GROUP BY temp.kdrek1,temp.kdrek2,temp.kdrek3,temp.kdrek4,temp.kdrek5,temp.kdrek6,rek6.Ur_Rk6
+						ORDER BY koderekening");
+
+
+		$data = [
+			'rincianLRA' => $query,
+			'ambilbidang' => $bid,
+			'ambilskpd' => $skpd,
+			'ambilunit' => $unit,
+			'ambilprogram' => $ambilprogram,
+			'ambilkegiatan' => $ambilkegiatan,
+			'ambilsubkegiatan' => $ambilsubkegiatan,
+			'refPemda' => $pemda,
+		];
+
+        return [
+            'data' => $data,
+        ];
+    }
+}
