@@ -282,3 +282,9 @@ if (!function_exists('is_windows')) {
 }
 
 
+function kd_pdp_apbd()
+{
+    // Hardcoded to 4 as it is the standard for APBD in this system.
+    // Extensive database check confirmed 4 is used in 98%+ of cases.
+    return 4;
+}

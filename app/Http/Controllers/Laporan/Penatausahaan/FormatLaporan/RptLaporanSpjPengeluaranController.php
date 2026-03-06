@@ -129,9 +129,7 @@ class RptLaporanSpjPengeluaranController extends Controller
 											) AS nilai_lalu
 											FROM tb_spirc A INNER JOIN
 											tb_spi B ON A.id_spi = B.id INNER JOIN
-											tb_oto C ON B.id = C.id_spi INNER JOIN
-											tb_npd D ON C.id = D.id_oto INNER JOIN
-											(SELECT id_npd, No_npd, dt_byro FROM tb_byroto GROUP BY id_npd, No_npd, dt_byro ) E ON D.id_npd = E.id_npd
+											tb_oto C ON B.id = C.id_spi 
 											WHERE ( MONTH(CAST(C.dt_oto AS DATE)) <= ".$bulan." ) AND (A.Ko_Period = ".$tahun.") AND (A.Ko_unitstr = LEFT('".kd_unit()."',18))
 											AND B.Ko_SPi IN(4,6,8)
 											GROUP BY A.Ko_Period, A.Ko_sKeg1, A.Ko_sKeg2, A.ko_rkk
@@ -162,9 +160,7 @@ class RptLaporanSpjPengeluaranController extends Controller
 												) AS nilai_lalu
 												FROM tb_spirc A INNER JOIN
 												tb_spi B ON A.id_spi = B.id INNER JOIN
-												tb_oto C ON B.id = C.id_spi INNER JOIN
-												tb_npd D ON C.id = D.id_oto INNER JOIN
-												(SELECT id_npd, No_npd, dt_byro FROM tb_byroto GROUP BY id_npd, No_npd, dt_byro ) E ON D.id_npd = E.id_npd
+												tb_oto C ON B.id = C.id_spi 
 												WHERE ( MONTH(CAST(C.dt_oto AS DATE)) <= ".$bulan." ) AND (A.Ko_Period = ".$tahun.") AND (A.Ko_unitstr = LEFT('".kd_unit()."',18))
 												AND B.Ko_SPi IN(2,3)
 												GROUP BY A.Ko_Period, A.Ko_sKeg1, A.Ko_sKeg2, A.ko_rkk
@@ -185,8 +181,6 @@ class RptLaporanSpjPengeluaranController extends Controller
 												FROM tb_spirc A INNER JOIN
 												tb_spi B ON A.id_spi = B.id INNER JOIN
 												tb_oto C ON B.id = C.id_spi INNER JOIN
-												tb_npd D ON C.id = D.id_oto INNER JOIN
-												(SELECT id_npd, No_npd, dt_byro FROM tb_byroto GROUP BY id_npd, No_npd, dt_byro ) E ON D.id_npd = E.id_npd INNER JOIN 
 												pf_mapjr AS map ON A.ko_rkk = map.LO_K 
 												WHERE ( MONTH(CAST(C.dt_oto AS DATE)) <= ".$bulan." ) AND (A.Ko_Period = ".$tahun.") AND (A.Ko_unitstr = LEFT('".kd_unit()."',18))
 												AND B.Ko_SPi IN(9)

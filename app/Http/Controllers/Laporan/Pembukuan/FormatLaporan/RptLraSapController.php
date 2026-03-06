@@ -76,8 +76,38 @@ class RptLraSapController extends Controller
 		$Ko_tap = DB::SELECT("SELECT MAX(Ko_tap) AS Ko_tap FROM tb_tap WHERE Ko_Period = ".$tahun." AND LEFT(Ko_unit1,18) = '".kd_unit()."' AND CAST(Dt_Tap AS DATE) <= CAST('".$tgl_2."' AS DATE) ");
 
 		$id_tap = DB::SELECT("SELECT MAX(id_tap) AS id_tap FROM tb_tap WHERE Ko_tap=".$Ko_tap[0]->Ko_tap." AND Ko_Period = ".$tahun." AND LEFT(Ko_unit1,18) = '".kd_unit()."' AND CAST(Dt_Tap AS DATE) <= CAST('".$tgl_2."' AS DATE) ");
-		
+		$sumberdana = "  ";
+		if(tb_sub('apbd') == 0 ) {
+			$sumberdana = "  AND bel.Ko_Pdp<>".kd_pdp_apbd();	
+		}
+
+		$apbd = request('apbd');
+
+		$virtual_apbd = "";
+		if ($apbd == 'true') {
+			if(tb_sub('apbd') == 1) { // Hanya tarik virtual APBD jika toggle APBD menyala
+				$virtual_apbd = "
+				UNION ALL
+				SELECT CONCAT(bel.Ko_Period, '-4-1-4-0') as kodebuatan,
+				bel.Ko_Period AS tahun, 4 as kdrek1, 1 as kdrek2, 4 as kdrek3, 0 as kdrek4, sum(bel.To_Rp) AS jumlah
+				FROM tb_tap AS bel
+				WHERE bel.Ko_tap=".$Ko_tap[0]->Ko_tap." AND bel.id_tap=".$id_tap[0]->id_tap." AND LEFT(bel.Ko_unit1,18) = '".kd_unit()."'
+				AND bel.Ko_Pdp = ".kd_pdp_apbd()." 
+				AND (LEFT(bel.ko_rkk,2) = 5 OR (LEFT(bel.ko_rkk,2)=6 AND SUBSTRING(bel.ko_rkk,4,2)=2))
+				GROUP BY bel.Ko_Period
+				";
+			}
+		}
+
 		$query = DB::select("WITH anggaran AS (
+							SELECT CONCAT(bel.Ko_Period,'-',n.kdrek1,'-',n.kdrek2,'-',n.kdrek3,'-',n.kdrek4) as kodebuatan, 
+							bel.Ko_Period AS tahun, n.kdrek1, n.kdrek2, n.kdrek3, n.kdrek4, sum(bel.To_Rp) AS jumlah
+							FROM tb_tap AS bel INNER JOIN
+							pf_rek_sap n ON LEFT(bel.ko_rkk,2) = n.Ko_Rk1 AND SUBSTRING(bel.ko_rkk,4,2) = n.Ko_Rk2 AND SUBSTRING(bel.ko_rkk,7,2) = n.Ko_Rk3 AND SUBSTRING(bel.ko_rkk,10,2) = n.Ko_Rk4 AND SUBSTRING(bel.ko_rkk,13,3) = n.Ko_Rk5							
+							WHERE bel.Ko_tap=".$Ko_tap[0]->Ko_tap." AND bel.id_tap=".$id_tap[0]->id_tap." AND LEFT(bel.Ko_unit1,18) = '".kd_unit()."' ".$sumberdana."
+							AND (LEFT(bel.ko_rkk,2) = 4 OR (LEFT(bel.ko_rkk,2)=6 AND SUBSTRING(bel.ko_rkk,4,2)=1))
+							GROUP BY bel.Ko_Period, n.kdrek1, n.kdrek2, n.kdrek3, n.kdrek4
+							UNION ALL
 							SELECT CONCAT(bel.Ko_Period,'-',n.kdrek1,'-',n.kdrek2,'-',n.kdrek3,'-',n.kdrek4) as kodebuatan, 
 							bel.Ko_Period AS tahun, n.kdrek1, n.kdrek2, n.kdrek3, n.kdrek4, sum(bel.To_Rp) AS jumlah
 							FROM tb_tap AS bel INNER JOIN
@@ -88,9 +118,10 @@ class RptLraSapController extends Controller
 							pf_keg l ON k.id_keg=l.id_keg INNER JOIN
 							pf_prg m ON l.id_prog=m.id_prog INNER JOIN
 							pf_rek_sap n ON LEFT(bel.ko_rkk,2) = n.Ko_Rk1 AND SUBSTRING(bel.ko_rkk,4,2) = n.Ko_Rk2 AND SUBSTRING(bel.ko_rkk,7,2) = n.Ko_Rk3 AND SUBSTRING(bel.ko_rkk,10,2) = n.Ko_Rk4 AND SUBSTRING(bel.ko_rkk,13,3) = n.Ko_Rk5							
-							WHERE bel.Ko_tap=".$Ko_tap[0]->Ko_tap." AND bel.id_tap=".$id_tap[0]->id_tap." AND LEFT(bel.Ko_unit1,18) = '".kd_unit()."'
-							AND ((LEFT(bel.ko_rkk,2) IN (4,5)) OR (LEFT(bel.ko_rkk,2)=6 AND SUBSTRING(bel.ko_rkk,4,2)=1) OR (LEFT(bel.ko_rkk,2)=6 AND SUBSTRING(bel.ko_rkk,4,2)=2))
+							WHERE bel.Ko_tap=".$Ko_tap[0]->Ko_tap." AND bel.id_tap=".$id_tap[0]->id_tap." AND LEFT(bel.Ko_unit1,18) = '".kd_unit()."' ".$sumberdana."
+							AND (LEFT(bel.ko_rkk,2) = 5 OR (LEFT(bel.ko_rkk,2)=6 AND SUBSTRING(bel.ko_rkk,4,2)=2))
 							GROUP BY bel.Ko_Period, n.kdrek1, n.kdrek2, n.kdrek3, n.kdrek4
+							".$virtual_apbd."
 						),
 						realisasi AS (
 							SELECT CONCAT(

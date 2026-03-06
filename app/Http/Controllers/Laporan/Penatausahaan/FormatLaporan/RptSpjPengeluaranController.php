@@ -139,45 +139,41 @@ class RptSpjPengeluaranController extends Controller
 												SELECT A.Ko_Period, A.Ko_sKeg1, A.Ko_sKeg2, A.ko_rkk, 
 												SUM(
 													CASE
-														WHEN ( MONTH(CAST(D.Dt_npd AS DATE)) = ".$bulan." ) THEN A.spirc_Rp
+														WHEN ( MONTH(CAST(C.dt_oto AS DATE)) = ".$bulan." ) THEN A.spirc_Rp
 														ELSE 0
 													END
 												) AS nilai,
 												SUM(
 													CASE
-														WHEN ( MONTH(CAST(D.Dt_npd AS DATE)) < ".$bulan." ) THEN A.spirc_Rp
+														WHEN ( MONTH(CAST(C.dt_oto AS DATE)) < ".$bulan." ) THEN A.spirc_Rp
 														ELSE 0
 													END
 												) AS nilai_lalu
 												FROM tb_spirc A INNER JOIN
 												tb_spi B ON A.id_spi = B.id INNER JOIN
-												tb_oto C ON B.id = C.id_spi INNER JOIN
-												tb_npd D ON C.id = D.id_oto INNER JOIN
-												(SELECT id_npd, No_npd, dt_byro FROM tb_byroto GROUP BY id_npd, No_npd, dt_byro ) E ON D.id_npd = E.id_npd
-												WHERE ( MONTH(CAST(D.Dt_npd AS DATE)) <= ".$bulan." ) AND (A.Ko_Period = ".$tahun.") AND (A.Ko_unitstr = LEFT('".kd_unit()."',18))
+												tb_oto C ON B.id = C.id_spi 
+												WHERE ( MONTH(CAST(C.dt_oto AS DATE)) <= ".$bulan." ) AND (A.Ko_Period = ".$tahun.") AND (A.Ko_unitstr = LEFT('".kd_unit()."',18))
 												AND B.Ko_SPi IN(2,3)
 												GROUP BY A.Ko_Period, A.Ko_sKeg1, A.Ko_sKeg2, A.ko_rkk
 												UNION ALL
 												SELECT A.Ko_Period, A.Ko_sKeg1, A.Ko_sKeg2, map.Ko_RKK, 
 												SUM(
 													CASE
-														WHEN ( MONTH(CAST(D.Dt_npd AS DATE)) = ".$bulan." ) THEN A.spirc_Rp
+														WHEN ( MONTH(CAST(C.dt_oto AS DATE)) = ".$bulan." ) THEN A.spirc_Rp
 														ELSE 0
 													END
 												) AS nilai,
 												SUM(
 													CASE
-														WHEN ( MONTH(CAST(D.Dt_npd AS DATE)) < ".$bulan." ) THEN A.spirc_Rp
+														WHEN ( MONTH(CAST(C.dt_oto AS DATE)) < ".$bulan." ) THEN A.spirc_Rp
 														ELSE 0
 													END
 												) AS nilai_lalu
 												FROM tb_spirc A INNER JOIN
 												tb_spi B ON A.id_spi = B.id INNER JOIN
 												tb_oto C ON B.id = C.id_spi INNER JOIN
-												tb_npd D ON C.id = D.id_oto INNER JOIN
-												(SELECT id_npd, No_npd, dt_byro FROM tb_byroto GROUP BY id_npd, No_npd, dt_byro ) E ON D.id_npd = E.id_npd INNER JOIN 
 												pf_mapjr AS map ON A.ko_rkk = map.LO_K 
-												WHERE ( MONTH(CAST(D.Dt_npd AS DATE)) <= ".$bulan." ) AND (A.Ko_Period = ".$tahun.") AND (A.Ko_unitstr = LEFT('".kd_unit()."',18))
+												WHERE ( MONTH(CAST(C.dt_oto AS DATE)) <= ".$bulan." ) AND (A.Ko_Period = ".$tahun.") AND (A.Ko_unitstr = LEFT('".kd_unit()."',18))
 												AND B.Ko_SPi IN(9)
 												GROUP BY A.Ko_Period, A.Ko_sKeg1, A.Ko_sKeg2, map.Ko_RKK
 										) A
@@ -256,47 +252,38 @@ class RptSpjPengeluaranController extends Controller
 									GROUP BY a.kdrek1, a.kdrek2, a.kdrek3, a.kdrek4, a.kdrek5, a.kdrek6, rek.Ur_Rk6
 									ORDER BY a.kdrek1, a.kdrek2, a.kdrek3, a.kdrek4, a.kdrek5, a.kdrek6, rek.Ur_Rk6");
 									
-			$spjfooter = DB::select("WITH rincian_bukti AS
-						(
-							-- LS Penerimaan Total
-							SELECT 1 AS kode, SUM(A.spirc_Rp) AS debet, 0 AS kredit
-							FROM tb_spirc A INNER JOIN
-							tb_spi B ON A.id_spi = B.id INNER JOIN
-							tb_oto C ON B.id = C.id_spi INNER JOIN
-							tb_npd D ON C.id = D.id_oto INNER JOIN
-							(SELECT id_npd, No_npd, dt_byro FROM tb_byroto GROUP BY id_npd, No_npd, dt_byro ) E ON D.id_npd = E.id_npd
-							WHERE ( MONTH(CAST(D.Dt_npd AS DATE)) <= ".$bulan." ) AND (A.Ko_Period = ".$tahun.") AND (A.Ko_unitstr = LEFT('".kd_unit()."',18))
-							AND B.Ko_SPi IN(2,3,9)
-							UNION ALL
-							-- LS Pengeluaran Rinci
-							SELECT 2 AS kode, 0 AS debet, SUM(A.spirc_Rp) AS kredit
-							FROM tb_spirc A INNER JOIN
-							tb_spi B ON A.id_spi = B.id INNER JOIN
-							tb_oto C ON B.id = C.id_spi INNER JOIN
-							tb_npd D ON C.id = D.id_oto INNER JOIN
-							(SELECT id_npd, No_npd, dt_byro FROM tb_byroto GROUP BY id_npd, No_npd, dt_byro ) E ON D.id_npd = E.id_npd
-							WHERE ( MONTH(CAST(D.Dt_npd AS DATE)) <= ".$bulan." ) AND (A.Ko_Period = ".$tahun.") AND (A.Ko_unitstr = LEFT('".kd_unit()."',18))
-							AND B.Ko_SPi IN(2,3,9)
-							UNION ALL
-							-- up/gu penerimaan
-							SELECT 3 AS kode, SUM(A.spirc_Rp) AS debet, 0 AS kredit
-							FROM tb_spirc A INNER JOIN
-							tb_spi B ON A.id_spi = B.id INNER JOIN
-							tb_oto C ON B.id = C.id_spi INNER JOIN
-							tb_npd D ON C.id = D.id_oto INNER JOIN
-							(SELECT id_npd, No_npd, dt_byro FROM tb_byroto GROUP BY id_npd, No_npd, dt_byro ) E ON D.id_npd = E.id_npd
-							WHERE ( MONTH(CAST(D.Dt_npd AS DATE)) <= ".$bulan." ) AND (A.Ko_Period = ".$tahun.") AND (A.Ko_unitstr = LEFT('".kd_unit()."',18))
-							AND B.Ko_SPi IN(1, 4)
-							UNION ALL
-							-- gu Pengeluaran
-							SELECT 4 AS kode, 0 AS debet, SUM(A.spirc_Rp) AS kredit
-							FROM tb_spirc A INNER JOIN
-							tb_spi B ON A.id_spi = B.id INNER JOIN
-							tb_oto C ON B.id = C.id_spi INNER JOIN
-							tb_npd D ON C.id = D.id_oto INNER JOIN
-							(SELECT id_npd, No_npd, dt_byro FROM tb_byroto GROUP BY id_npd, No_npd, dt_byro ) E ON D.id_npd = E.id_npd
-							WHERE ( MONTH(CAST(D.Dt_npd AS DATE)) <= ".$bulan." ) AND (A.Ko_Period = ".$tahun.") AND (A.Ko_unitstr = LEFT('".kd_unit()."',18))
-							AND B.Ko_SPi IN(4, 6, 8)
+			$spjfooter = DB::select("WITH rincian_bukti AS (
+										-- spj LS penerimaan
+										SELECT 1 AS kode, SUM(A.spirc_Rp) AS debet, 0 AS kredit
+										FROM tb_spirc A INNER JOIN
+										tb_spi B ON A.id_spi = B.id INNER JOIN
+										tb_oto C ON B.id = C.id_spi 
+										WHERE ( MONTH(CAST(C.dt_oto AS DATE)) <= ".$bulan." ) AND (A.Ko_Period = ".$tahun.") AND (A.Ko_unitstr = LEFT('".kd_unit()."',18))
+										AND B.Ko_SPi IN (2,3,9)
+										UNION ALL
+										-- spj LS pengeluaran rinci
+										SELECT 2 AS kode, 0 AS debet, SUM(A.spirc_Rp) AS kredit
+										FROM tb_spirc A INNER JOIN
+										tb_spi B ON A.id_spi = B.id INNER JOIN
+										tb_oto C ON B.id = C.id_spi 
+										WHERE ( MONTH(CAST(C.dt_oto AS DATE)) <= ".$bulan." ) AND (A.Ko_Period = ".$tahun.") AND (A.Ko_unitstr = LEFT('".kd_unit()."',18))
+										AND B.Ko_SPi IN (2,3,9)
+										UNION ALL
+										-- UP/GU penerimaan
+										SELECT 3 AS kode, SUM(A.spirc_Rp) AS debet, 0 AS kredit
+										FROM tb_spirc A INNER JOIN
+										tb_spi B ON A.id_spi = B.id INNER JOIN
+										tb_oto C ON B.id = C.id_spi 
+										WHERE ( MONTH(CAST(C.dt_oto AS DATE)) <= ".$bulan." ) AND (A.Ko_Period = ".$tahun.") AND (A.Ko_unitstr = LEFT('".kd_unit()."',18))
+										AND B.Ko_SPi IN (1,4)
+										UNION ALL
+										-- GU Pengeluaran
+										SELECT 4 AS kode, 0 AS debet, SUM(A.spirc_Rp) AS kredit
+										FROM tb_spirc A INNER JOIN
+										tb_spi B ON A.id_spi = B.id INNER JOIN
+										tb_oto C ON B.id = C.id_spi 
+										WHERE ( MONTH(CAST(C.dt_oto AS DATE)) <= ".$bulan." ) AND (A.Ko_Period = ".$tahun.") AND (A.Ko_unitstr = LEFT('".kd_unit()."',18))
+										AND B.Ko_SPi IN (4,6,8)
 							UNION ALL
 							-- bukti potongan Pajak penerimaan GU						
 							SELECT 5 AS kode, SUM(E.tax_Rp) AS debet, 0 AS kredit
