@@ -278,7 +278,7 @@ class RptLraSapController extends Controller
 			'rincianLRA' => $query,
 			'ambilbidang' => $bid,
 			'ambilskpd' => $skpd,
-			'ambilunit' => $unit,
+			'ambilunit' => $unit,																																							
 			'refPemda' => $pemda,
 		];
 

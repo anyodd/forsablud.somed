@@ -13,12 +13,18 @@ class DeploymentController extends Controller
      */
     public function githubWebhook(Request $request)
     {
-        $signature = $request->header('X-Hub-Signature-256');
+        Log::info('GitHub Webhook: Request received');
+        $signature = $request->header('X-Hub-Signature-256') ?: $request->header('X-Hub-Signature');
         $payload = $request->getContent();
         $secret = config('services.github.webhook_secret') ?? env('GITHUB_WEBHOOK_SECRET');
 
-        if (!$signature || !$this->validateSignature($signature, $payload, $secret)) {
-            Log::warning('GitHub Webhook: Invalid signature');
+        if (!$signature) {
+            Log::warning('GitHub Webhook: No signature header found');
+            return response()->json(['message' => 'No signature header'], 403);
+        }
+
+        if (!$this->validateSignature($signature, $payload, $secret)) {
+            Log::warning('GitHub Webhook: Signature mismatch');
             return response()->json(['message' => 'Invalid signature'], 403);
         }
 
@@ -42,7 +48,12 @@ class DeploymentController extends Controller
             return false;
         }
 
-        $expected = 'sha256=' . hash_hmac('sha256', $payload, $secret);
+        if (strpos($signature, 'sha256=') === 0) {
+            $expected = 'sha256=' . hash_hmac('sha256', $payload, $secret);
+        } else {
+            $expected = 'sha1=' . hash_hmac('sha1', $payload, $secret);
+        }
+
         return hash_equals($expected, $signature);
     }
 

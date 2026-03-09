@@ -15,6 +15,13 @@ class SecureHeaders
      */
     public function handle($request, Closure $next)
     {
+        if ($request->is('api/webhook/github')) {
+            \Illuminate\Support\Facades\Log::info('SecureHeaders processing webhook request', [
+                'method' => $request->method(),
+                'ip' => $request->ip(),
+                'headers' => $request->headers->all(),
+            ]);
+        }
         $response = $next($request);
 
         if (!app()->environment('testing')) {
